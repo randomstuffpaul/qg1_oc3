@@ -894,7 +894,6 @@ static int sec_chg_set_property(struct power_supply *psy,
 		max77693_set_input_current(charger,
 				val->intval);
 		break;
-#if defined(CONFIG_SAMSUNG_BATTERY_ENG_TEST)
 	case POWER_SUPPLY_PROP_CHARGE_TYPE:
 		if(val->intval == POWER_SUPPLY_TYPE_WIRELESS) {
 			u8 reg_data;
@@ -917,7 +916,6 @@ static int sec_chg_set_property(struct power_supply *psy,
 
 		}
 		break;
-#endif
 	default:
 		return -EINVAL;
 	}
@@ -1321,7 +1319,7 @@ static void max77693_chgin_isr_work(struct work_struct *work)
 		if (charger->is_charging) {
 			/* reduce only at CC MODE */
 			if (((chgin_dtls == 0x0) || (chgin_dtls == 0x01)) &&
-					(chg_dtls == 0x01) && (stable_count > 2))
+					(chg_dtls == 0x01) && (stable_count > 3))
 				reduce_input_current(charger, REDUCE_CURRENT_STEP);
 		}
 		prev_chgin_dtls = chgin_dtls;

@@ -1130,10 +1130,12 @@ static int console_trylock_for_printk(unsigned int cpu)
 			retval = 0;
 		}
 	}
-	printk_cpu = UINT_MAX;
+	
+    printk_cpu = UINT_MAX;
+    raw_spin_unlock(&logbuf_lock);
 	if (wake)
 		up(&console_sem);
-	raw_spin_unlock(&logbuf_lock);
+	
 	return retval;
 }
 static const char recursion_bug_msg [] =

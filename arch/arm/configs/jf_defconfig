@@ -780,6 +780,9 @@ CONFIG_CRYPTO_SHA512=y
 CONFIG_LOG_BUF_SHIFT=18
 #jh43.jung  FIPS Cerified code merge - end
 
+#enable sec netfilter
+CONFIG_SEC_NET_FILTER=y
+
 # SSWAP
 CONFIG_SWAP=y
 CONFIG_FRONTSWAP=y

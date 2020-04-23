@@ -64,8 +64,8 @@ static struct device_attribute sec_battery_attrs[] = {
 	SEC_BATTERY_ATTR(batt_temp_table),
 #if defined(CONFIG_SAMSUNG_BATTERY_ENG_TEST)
 	SEC_BATTERY_ATTR(test_charge_current),
-	SEC_BATTERY_ATTR(set_stability_test),
 #endif
+	SEC_BATTERY_ATTR(set_stability_test),
 };
 
 static enum power_supply_property sec_battery_props[] = {
@@ -666,6 +666,7 @@ check_recharge_check_count:
 
 static bool sec_bat_voltage_check(struct sec_battery_info *battery)
 {
+	union power_supply_propval value;
 	if (battery->status == POWER_SUPPLY_STATUS_DISCHARGING) {
 		dev_dbg(battery->dev,
 			"%s: Charging Disabled\n", __func__);
@@ -676,6 +677,22 @@ static bool sec_bat_voltage_check(struct sec_battery_info *battery)
 	if (sec_bat_ovp_uvlo(battery)) {
 		battery->pdata->ovp_uvlo_result_callback(battery->health);
 		return false;
+	}
+	if ((battery->status == POWER_SUPPLY_STATUS_FULL) && \
+		battery->is_recharging) {
+		psy_do_property(battery->pdata->fuelgauge_name, get,
+			POWER_SUPPLY_PROP_CAPACITY, value);
+		if (value.intval <
+			battery->pdata->full_condition_soc &&
+				battery->voltage_now <
+				(battery->pdata->recharge_condition_vcell - 50)) {
+			battery->status = POWER_SUPPLY_STATUS_CHARGING;
+			battery->voltage_now = 1080;
+			battery->voltage_avg = 1080;
+			power_supply_changed(&battery->psy_bat);
+			dev_info(battery->dev,
+				"%s: battery status full -> charging, RepSOC(%d)\n", __func__, value.intval);
+		}
 	}
 
 	/* Re-Charging check */
@@ -2210,11 +2227,11 @@ ssize_t sec_bat_show_attrs(struct device *dev,
 					value.intval);
 		}
 		break;
+#endif
 	case BATT_STABILITY_TEST:
 		i += scnprintf(buf + i, PAGE_SIZE - i, "%d\n",
 			battery->stability_test);
 		break;
-#endif
 	default:
 		i = -EINVAL;
 	}
@@ -2556,6 +2573,7 @@ ssize_t sec_bat_store_attrs(
 			ret = count;
 		}
 		break;
+#endif
 	case BATT_STABILITY_TEST:
 		if (sscanf(buf, "%d\n", &x) == 1) {
 			union power_supply_propval value;
@@ -2580,7 +2598,6 @@ ssize_t sec_bat_store_attrs(
 			}
 		}
 		break;
-#endif
 	default:
 		ret = -EINVAL;
 	}
@@ -2672,7 +2689,7 @@ static int sec_bat_set_property(struct power_supply *psy,
 			current_cable_type = val->intval;
 		sec_bat_reset_discharge(battery);
 
-#if defined(CONFIG_SAMSUNG_BATTERY_ENG_TEST)
+
 		if ((current_cable_type != POWER_SUPPLY_TYPE_WIRELESS) &&
 			((current_cable_type != POWER_SUPPLY_TYPE_BATTERY) &&
 			(battery->stability_test))) {
@@ -2681,7 +2698,7 @@ static int sec_bat_set_property(struct power_supply *psy,
 					__func__, current_cable_type);
 			break;
 		}
-#endif
+
 
 		/* if another cable is connected,
 		  * ignore wireless charing event
@@ -3095,10 +3112,8 @@ static int __devinit sec_battery_probe(struct platform_device *pdev)
 	battery->wc_enable = 1;
 	battery->ps_status = 0;
 	battery->ps_changed = 0;
-#if defined(CONFIG_SAMSUNG_BATTERY_ENG_TEST)
 	battery->stability_test = 0;
 	battery->eng_not_full_status = 0;
-#endif
 	battery->ps_enable= 0;
 
 	alarm_init(&battery->event_termination_alarm,
